@@ -3,6 +3,7 @@ import torch
 import torchvision
 import torch.nn as nn 
 from tqdm import *
+import numpy as np
 # 读取excel文件
 data = pd.read_excel('Problem_C_Data_Wordle.xlsx')
 
@@ -49,6 +50,17 @@ for word in words:
  
 results = data.iloc[1:, 6:13].values.tolist()
 
+
+
+
+
+
+
+results = np.array(results)/100
+
+
+
+
 input_data =  torch.Tensor(words_hotcode)
 
 output_data = torch.Tensor(results)
@@ -62,9 +74,9 @@ from torch.utils.data import TensorDataset, DataLoader, random_split
 import matplotlib.pyplot as plt
 
 # 定义超参数
-learning_rate = 0.001
+learning_rate = 0.0001
 batch_size = 8
-num_epochs = 100
+num_epochs = 1000
 
 # 将张量A和B转换为TensorDataset对象，并将数据集分成训练集和测试集
 
@@ -79,13 +91,15 @@ class FeedforwardNet(nn.Module):
     def __init__(self, input_size, hidden_size, output_size):
         super(FeedforwardNet, self).__init__()
         self.fc1 = nn.Linear(input_size, hidden_size)
-        # self.fc2 = nn.Linear(hidden_size, hidden_size)
+        self.fc2 = nn.Linear(hidden_size, hidden_size)
         self.fc3 = nn.Linear(hidden_size, output_size)
+        self.softmax = nn.Softmax()
 
     def forward(self, x):
         x = nn.functional.relu(self.fc1(x))
-        # x = nn.functional.relu(self.fc2(x))
+        x = nn.functional.relu(self.fc2(x))
         x = self.fc3(x)
+        x=self.softmax(x)
         return x
 
 # 初始化模型和优化器
@@ -109,9 +123,7 @@ for epoch in tqdm(range(num_epochs)):
         optimizer.zero_grad()
         outputs = model(inputs)
         loss = criterion(outputs, labels)
-        if loss==0 :
-            a+=1
-        b+=1
+     
         loss.backward()
         optimizer.step()
         train_losses.append(loss.item())
@@ -140,5 +152,4 @@ plt.legend()
 plt.show()
 
 torch.save(model.state_dict(),'mm')
-
 
