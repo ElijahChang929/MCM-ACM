@@ -3,7 +3,7 @@ import torch
 import torchvision
 import torch.nn as nn 
 
-# 读取exce l文件
+# 读取excel文件
 data = pd.read_excel('Problem_C_Data_Wordle.xlsx')
 
 # 获取第三行第四列向下的所有元素
@@ -51,12 +51,12 @@ results = data.iloc[1:, 6:13].values.tolist()
 
 input_data =  torch.Tensor(words_hotcode)
 
-#output_data = torch.Tensor(results)
+output_data = torch.Tensor(results)
 
 
 
 
-'''
+
 
 import torch
 import torch.nn as nn
@@ -71,7 +71,7 @@ num_epochs = 50
 
 # 将张量A和B转换为TensorDataset对象，并将数据集分成训练集和测试集
 
-dataset = TensorDataset(words_hotcode, results)
+dataset = TensorDataset(input_data, output_data)
 
 train_size = int(0.8 * len(dataset))
 test_size = len(dataset) - train_size
@@ -92,7 +92,8 @@ class FeedforwardNet(nn.Module):
         return x
 
 # 初始化模型和优化器
-model = FeedforwardNet(359*5*26, 100, 359*7)
+model = FeedforwardNet(5*26, 100, 7)
+print(model)
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 criterion = nn.CrossEntropyLoss()
 
@@ -107,7 +108,7 @@ for epoch in range(num_epochs):
     # 训练模型
     model.train()
     for i, (inputs, labels) in enumerate(train_loader):
-        inputs = inputs.view(-1, 359*5*26)
+        inputs = inputs.view(-1, 5*26)
         optimizer.zero_grad()
         outputs = model(inputs)
         loss = criterion(outputs, labels)
@@ -119,7 +120,7 @@ for epoch in range(num_epochs):
     model.eval()
     with torch.no_grad():
         for inputs, labels in test_loader:
-            inputs = inputs.view(-1, 359*5*26)
+            inputs = inputs.view(-1, 5*26)
             outputs = model(inputs)
             loss = criterion(outputs, labels)
             test_losses.append(loss.item())
@@ -137,4 +138,4 @@ plt.show()
 
 
 
-'''
+
