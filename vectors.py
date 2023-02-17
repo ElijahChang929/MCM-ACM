@@ -3,7 +3,7 @@ import torch
 import torchvision
 import torch.nn as nn 
 
-# 读取excel文件
+# 读取exce l文件
 data = pd.read_excel('Problem_C_Data_Wordle.xlsx')
 
 # 获取第三行第四列向下的所有元素
