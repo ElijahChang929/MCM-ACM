@@ -2,7 +2,7 @@ import pandas as pd
 import torch
 import torchvision
 import torch.nn as nn 
-
+from tqdm import *
 # 读取excel文件
 data = pd.read_excel('Problem_C_Data_Wordle.xlsx')
 
@@ -55,9 +55,6 @@ output_data = torch.Tensor(results)
 
 
 
-
-
-
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -66,8 +63,8 @@ import matplotlib.pyplot as plt
 
 # 定义超参数
 learning_rate = 0.001
-batch_size = 32
-num_epochs = 50
+batch_size = 8
+num_epochs = 100
 
 # 将张量A和B转换为TensorDataset对象，并将数据集分成训练集和测试集
 
@@ -82,20 +79,20 @@ class FeedforwardNet(nn.Module):
     def __init__(self, input_size, hidden_size, output_size):
         super(FeedforwardNet, self).__init__()
         self.fc1 = nn.Linear(input_size, hidden_size)
-        self.fc2 = nn.Linear(hidden_size, hidden_size)
+        # self.fc2 = nn.Linear(hidden_size, hidden_size)
         self.fc3 = nn.Linear(hidden_size, output_size)
 
     def forward(self, x):
         x = nn.functional.relu(self.fc1(x))
-        x = nn.functional.relu(self.fc2(x))
+        # x = nn.functional.relu(self.fc2(x))
         x = self.fc3(x)
         return x
 
 # 初始化模型和优化器
-model = FeedforwardNet(5*26, 100, 7)
+model = FeedforwardNet(5*26, 48, 7)
 print(model)
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-criterion = nn.CrossEntropyLoss()
+criterion = nn.MSELoss()
 
 # 定义数据加载器
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
@@ -104,7 +101,7 @@ test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
 # 开始训练
 train_losses = []
 test_losses = []
-for epoch in range(num_epochs):
+for epoch in tqdm(range(num_epochs)):
     # 训练模型
     model.train()
     for i, (inputs, labels) in enumerate(train_loader):
@@ -112,9 +109,15 @@ for epoch in range(num_epochs):
         optimizer.zero_grad()
         outputs = model(inputs)
         loss = criterion(outputs, labels)
+        if loss==0 :
+            a+=1
+        b+=1
         loss.backward()
         optimizer.step()
         train_losses.append(loss.item())
+
+    # acc_1=a/b
+    # print(acc_1)
 
     # 测试模型
     model.eval()
@@ -136,6 +139,6 @@ plt.ylabel('Loss')
 plt.legend()
 plt.show()
 
-
+torch.save(model.state_dict(),'mm')
 
 
