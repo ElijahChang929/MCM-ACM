@@ -10,8 +10,9 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import TensorDataset, DataLoader, random_split
 import matplotlib.pyplot as plt
+from torch.utils.tensorboard import SummaryWriter
 
-
+writer = SummaryWriter(log_dir="runs") 
 
 
 # 读取excel文件
@@ -65,47 +66,83 @@ results = data.iloc[1:, 6:13].values.tolist()
 
 results = np.array(results)/100
 
-input_data =  torch.Tensor(words_hotcode)
 
-output_data = torch.Tensor(results)
+words_hotcode = [list(np.ravel(x)) for x in words_hotcode]
+
+
+
+
+
+input_data =  torch.Tensor(words_hotcode).to('cuda:0')
+
+output_data = torch.Tensor(results).to('cuda:0')
 
 
 # 定义超参数
-learning_rate = 0.001
-batch_size = 32
-num_epochs = 200
+learning_rate = 0.0001
+
+num_epochs = 500
 
 # 将张量A和B转换为TensorDataset对象，并将数据集分成训练集和测试集
 
 dataset = TensorDataset(input_data, output_data)
 
+
+
 train_size = int(0.8 * len(dataset))
 test_size = len(dataset) - train_size
 train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
 
+
+
+
+
+
+
+
 # 定义前馈神经网络
-class FeedforwardNet(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size):
-        super(FeedforwardNet, self).__init__()
-        self.fc1 = nn.Linear(input_size, hidden_size)
-        self.fc2 = nn.Linear(hidden_size, output_size)
-        self.softmax = nn.Softmax()
+class LSTM(nn.Module):
+    def __init__(self, input_size, hidden_size, num_layers, output_size):
+        super(LSTM, self).__init__()
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True)
+        self.fc = nn.Linear(hidden_size, output_size)
 
     def forward(self, x):
-        x = nn.functional.relu(self.fc1(x))
-        x = self.fc2(x)
-        x=self.softmax(x)
-        return x
+        # 初始化隐藏状态和记忆单元
+        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
+        c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
 
+        # 前向传播
+        out, _ = self.lstm(x, (h0, c0))
+        out = self.fc(out[:, -1, :])
+
+        return out
+
+
+
+input_size = 130
+hidden_size = 64
+num_layers = 2
+output_size = 7
+model = LSTM(input_size, hidden_size, num_layers, output_size).to('cuda:0')
+
+print(model)
+
+#%%
 # 初始化模型和优化器
-model = FeedforwardNet(5*26, 48, 7)
+
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 criterion = nn.MSELoss()
 
 # 定义数据加载器
-train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
+train_loader = DataLoader(train_dataset, shuffle=True)
+test_loader = DataLoader(test_dataset, shuffle=True)
 
+
+
+#%%
 # 开始训练
 train_losses = []
 test_losses = []
@@ -113,26 +150,36 @@ for epoch in tqdm(range(num_epochs)):
     # 训练模型
     model.train()
     for i, (inputs, labels) in enumerate(train_loader):
-        inputs = inputs.view(-1, 5*26)
+        
         optimizer.zero_grad()
-        outputs = model(inputs)
+        outputs = model(inputs.squeeze(0))
         loss = criterion(outputs, labels)
         loss.backward()
         optimizer.step()
         train_losses.append(loss.item())
+        writer.add_scalar("train_losses", loss.detach(), epoch)
+
+#%%
+# 测试模型
+model.eval()
+with torch.no_grad():
+    for inputs, labels in test_loader:
+        
+        outputs = model(inputs.squeeze(0))
+        loss = criterion(outputs, labels)
 
 
-    # 测试模型
-    model.eval()
-    with torch.no_grad():
-        for inputs, labels in test_loader:
-            inputs = inputs.view(-1, 5*26)
-            outputs = model(inputs)
-            loss = criterion(outputs, labels)
-            test_losses.append(loss.item())
+        test_losses.append(loss.item())
+
+        writer.add_scalar("test_losses", loss.detach(), epoch)
 # 打印训练和测试损失
 print('Epoch [{}/{}], Train Loss: {:.4f}, Test Loss: {:.4f}'
       .format(epoch+1, num_epochs, train_losses[-1], test_losses[-1]))
+
+writer.close() 
+
+
+
 
 
 plt.plot(train_losses, label='Train Loss')
@@ -142,5 +189,11 @@ plt.ylabel('Loss')
 plt.legend()
 plt.show()
 
-torch.save(model.state_dict(),'mm')
+torch.save(model.state_dict(),'model_no_time')
+train_losses=np.array(train_losses)
+np.save('train_losses.npy',train_losses) 
 
+test_losses=np.array(test_losses)
+np.save('test_losses.npy',test_losses) 
+
+# %%
